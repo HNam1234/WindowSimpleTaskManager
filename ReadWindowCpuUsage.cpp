@@ -36,7 +36,7 @@ void readRamInfoWithInterval(int interval, std::atomic<bool> &isRunning)
     while (isRunning)
     {
         RamInfo ramInfo = getRamInfo();
-        std::cout << "RAM Used: " << ramInfo.RamUsed << "%, Used Bytes: " << ramInfo.UsedBytes / (1024 * 1024) << " MB\n";
+        spdlog::debug("RAM Used: {}%, Used Bytes: {} MB", ramInfo.RamUsed, ramInfo.UsedBytes / (1024.0 * 1024.0));
         std::this_thread::sleep_for(std::chrono::seconds(interval));
     }
 }
@@ -60,17 +60,16 @@ void readCpuWithIntervalSeconds(int interval, std::atomic<bool> &isRunning)
 {
     while (isRunning)
     {
-        std::cout << "CPU: " << cpu_percent_system() << "%\n";
+        spdlog::debug("CPU: {}%", cpu_percent_system());
         std::this_thread::sleep_for(std::chrono::seconds(interval));
     }
 }
 int main()
 {
-    std::cout << "Press Enter to stop...\n";
-    spdlog::set_level(spdlog::level::info);
-
-    // Log messages using the default logger
-    spdlog::info("Welcome to spdlog!"); // Python-like formatting
+    spdlog::set_level(spdlog::level::debug);
+    spdlog::set_pattern("[%H:%M:%S] [%^%l%$] %v"); // Set pattern for colored output
+    spdlog::info("Starting CPU and RAM monitoring...");
+    spdlog::info("Press Enter to stop the monitoring.");
     std::atomic<bool> isRunning{true};
     std::thread readCpu(readCpuWithIntervalSeconds, 1, std::ref(isRunning));
     std::thread readRam(readRamInfoWithInterval, 2, std::ref(isRunning));
