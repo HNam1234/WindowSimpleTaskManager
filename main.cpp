@@ -19,11 +19,17 @@ int main()
         - is a technique where a program is divided into smaller unit of execution called threads
         - each thread shared the same memory but run independently , allowing tasks to be performed simultaneously
         - help cpu utilizing multiple cpu cores efficiently
-        *Cons:
+        *Pros:
         - Leverages multiple CPU cores to execute tasks in parallel, reducing overall execution time
         - Keeps applications responsive by running background operations without blocking the main thread. For example, in a word document, one thread does auto-formatting along with the main thread
         - Makes it easier to handle large workloads or multiple simultaneous operations, such as in servers or real-time systems.
         * Before C++ 11, multithreading is very complicated, in linux, we use pthread, in window use WIN32 thread, or 3rd library like boost::thread. C++ 11 add feature like boost thread : std::thread make multithreading much easier and crossplatform.
+        *Cons: (*AI generated, may not be 100% accurate)
+        - Deadlocks: Occur when two or more threads are waiting indefinitely for each other to release resources, causing the program to hang.
+        - Race Conditions: Happen when multiple threads access shared data simultaneously, leading to unpredictable results if not properly synchronized.
+        - Starvation: A thread may be perpetually denied access to resources it needs to proceed, often due to other higher-priority threads monopolizing those resources.
+        - Increased Complexity: Multithreaded programs are generally more complex to design, implement, and debug compared to single-threaded ones.
+        - Overhead: Context switching between threads and synchronization mechanisms can introduce performance overhead, potentially negating the benefits of multithreading for small tasks.
         */
     // Creating a thread to read CPU usage every second
     std::thread readCpu(readCpuWithIntervalSeconds, 1, std::ref(isRunning));
