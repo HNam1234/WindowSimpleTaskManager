@@ -16,6 +16,44 @@ struct RamInfo
     double UsedBytes;
 };
 
+struct DiskInfo
+{
+    double DiskUsed;    // %
+    double UsedBytes;   // bytes
+    double TotalBytes;  // bytes
+};
+ // Function to get disk usage information
+DiskInfo getDiskInfo(const wchar_t *path = L"C:\\")
+{
+    ULARGE_INTEGER freeBytesAvailable, totalBytes, freeBytes;
+    if (!GetDiskFreeSpaceExW(path, &freeBytesAvailable, &totalBytes, &freeBytes))
+    {
+        spdlog::error("GetDiskFreeSpaceExW failed");
+        return {0.0, 0.0, 0.0};
+    }
+
+    double total = static_cast<double>(totalBytes.QuadPart);
+    double free = static_cast<double>(freeBytes.QuadPart);
+    double used = total - free;
+    double percent = (total > 0.0) ? (used / total) * 100.0 : 0.0;
+
+    return {percent, used, total};
+}
+
+void readDiskUsageWithInterval(int intervalSeconds, std::atomic<bool> &isRunning, const wchar_t *path = L"C:\\")
+{
+    while (isRunning)
+    {
+        DiskInfo disk = getDiskInfo(path);
+        spdlog::debug("Disk Used: {}%, Used: {} GB / Total: {} GB",
+                      disk.DiskUsed,
+                      disk.UsedBytes / (1024.0 * 1024.0 * 1024.0),
+                      disk.TotalBytes / (1024.0 * 1024.0 * 1024.0));
+        std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
+    }
+}
+
+// Function to get RAM usage information
 RamInfo getRamInfo()
 {
     MEMORYSTATUSEX memInfo;
@@ -40,6 +78,7 @@ void readRamInfoWithInterval(int interval, std::atomic<bool> &isRunning)
         std::this_thread::sleep_for(std::chrono::seconds(interval));
     }
 }
+// Function to get CPU usage percentage
 double cpu_percent_system()
 {
     FILETIME idle1, kernel1, user1, idle2, kernel2, user2;
