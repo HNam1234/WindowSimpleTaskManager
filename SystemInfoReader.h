@@ -64,20 +64,3 @@ void readCpuWithIntervalSeconds(int interval, std::atomic<bool> &isRunning)
         std::this_thread::sleep_for(std::chrono::seconds(interval));
     }
 }
-int main()
-{
-    spdlog::set_level(spdlog::level::debug);
-    spdlog::set_pattern("[%H:%M:%S] [%^%l%$] %v"); // Set pattern for colored output
-    spdlog::info("Starting CPU and RAM monitoring...");
-    spdlog::info("Press Enter to stop the monitoring.");
-    std::atomic<bool> isRunning{true};
-    std::thread readCpu(readCpuWithIntervalSeconds, 1, std::ref(isRunning));
-    std::thread readRam(readRamInfoWithInterval, 2, std::ref(isRunning));
-    if (std::cin.get() == '\n')
-    {
-        isRunning = false;
-    }
-    readCpu.join();
-    readRam.join();
-    return 0;
-}

@@ -8,7 +8,7 @@ include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
 find_package(spdlog REQUIRED)
 
 # Add executable
-add_executable(ReadWindowCpuUsage ReadWindowCpuUsage.cpp)
+add_executable(main main.cpp)
 
 # Link spdlog
-target_link_libraries(ReadWindowCpuUsage spdlog::spdlog)
+target_link_libraries(main spdlog::spdlog)
