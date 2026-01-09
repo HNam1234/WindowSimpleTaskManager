@@ -22,6 +22,13 @@ struct DiskInfo
     double UsedBytes;   // bytes
     double TotalBytes;  // bytes
 };
+
+struct SystemInfo
+{
+    double CpuPercent = 0.0;
+    RamInfo Ram{};
+    DiskInfo Disk{};
+};
  // Function to get disk usage information
 DiskInfo getDiskInfo(const wchar_t *path = L"C:\\")
 {
@@ -40,15 +47,15 @@ DiskInfo getDiskInfo(const wchar_t *path = L"C:\\")
     return {percent, used, total};
 }
 
-void readDiskUsageWithInterval(int intervalSeconds, std::atomic<bool> &isRunning, const wchar_t *path = L"C:\\")
+void readDiskUsageWithInterval(int intervalSeconds, std::atomic<bool> &isRunning, SystemInfo& systemInfo, std::mutex &mutex, const wchar_t *path = L"C:\\")
 {
     while (isRunning)
     {
-        DiskInfo disk = getDiskInfo(path);
-        spdlog::debug("Disk Used: {}%, Used: {} GB / Total: {} GB",
-                      disk.DiskUsed,
-                      disk.UsedBytes / (1024.0 * 1024.0 * 1024.0),
-                      disk.TotalBytes / (1024.0 * 1024.0 * 1024.0));
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            DiskInfo disk = getDiskInfo(path);
+            systemInfo.Disk = disk;
+        }
         std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
     }
 }
@@ -69,12 +76,15 @@ RamInfo getRamInfo()
     info.UsedBytes = physMemUsed;
     return info;
 }
-void readRamInfoWithInterval(int interval, std::atomic<bool> &isRunning)
+void readRamInfoWithInterval(int interval, std::atomic<bool> &isRunning, SystemInfo& systemInfo, std::mutex &mutex)
 {
     while (isRunning)
     {
-        RamInfo ramInfo = getRamInfo();
-        spdlog::debug("RAM Used: {}%, Used Bytes: {} MB", ramInfo.RamUsed, ramInfo.UsedBytes / (1024.0 * 1024.0));
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            RamInfo ramInfo = getRamInfo();
+            systemInfo.Ram = ramInfo;
+        }
         std::this_thread::sleep_for(std::chrono::seconds(interval));
     }
 }
@@ -95,11 +105,14 @@ double cpu_percent_system()
         return 0.0;
     return (1.0 - (double)idle / (double)total) * 100.0;
 }
-void readCpuWithIntervalSeconds(int interval, std::atomic<bool> &isRunning)
+void readCpuWithIntervalSeconds(int interval, std::atomic<bool> &isRunning,SystemInfo& systemInfo, std::mutex &mutex)
 {
     while (isRunning)
     {
-        spdlog::debug("CPU: {}%", cpu_percent_system());
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            systemInfo.CpuPercent = cpu_percent_system();
+        }
         std::this_thread::sleep_for(std::chrono::seconds(interval));
     }
 }

@@ -1,4 +1,3 @@
-#include <windows.h>
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -14,6 +13,8 @@ int main()
     spdlog::info("Starting CPU and RAM monitoring...");
     spdlog::info("Press Enter to stop the monitoring.");
     std::atomic<bool> isRunning{true};
+    std::mutex systemInfoMutex; // Mutex for synchronizing access to shared data
+    SystemInfo systemInfo;
     // Multithreading: 
         /*
         - is a technique where a program is divided into smaller unit of execution called threads
@@ -32,11 +33,11 @@ int main()
         - Overhead: Context switching between threads and synchronization mechanisms can introduce performance overhead, potentially negating the benefits of multithreading for small tasks.
         */
     // Creating a thread to read CPU usage every second
-    std::thread readCpu(readCpuWithIntervalSeconds, 1, std::ref(isRunning));
+    std::thread readCpu(readCpuWithIntervalSeconds, 1, std::ref(isRunning), std::ref(systemInfo), std::ref(systemInfoMutex));
     // Creating a thread to read RAM usage every 2 seconds
-    std::thread readRam(readRamInfoWithInterval, 2, std::ref(isRunning));
+    std::thread readRam(readRamInfoWithInterval, 2, std::ref(isRunning), std::ref(systemInfo), std::ref(systemInfoMutex));
     // Creating a thread to read Disk usage every 5 seconds
-    std::thread readDisk(readDiskUsageWithInterval, 5, std::ref(isRunning), L"C:\\");
+    std::thread readDisk(readDiskUsageWithInterval, 5, std::ref(isRunning), std::ref(systemInfo), std::ref(systemInfoMutex), L"C:\\");
     // Detach disk thread as we don't need to join it later, thats mean, we will lose control of this thread
     // the only way to stop it is to stop the whole program or using isRunning flag = false.
     readDisk.detach();
@@ -61,11 +62,28 @@ int main()
         }
     }, std::ref(isRunning));
     spdlog::info("stopper thread id: {}", thread_id_str(stopper.get_id()));
+
+    // Logger thread: reads shared SystemInfo while other threads are writing (no mutex -> can reproduce data race)
+    std::thread logger([](std::atomic<bool> &isRunning, SystemInfo &systemInfo, std::mutex &systemInfoMutex) {
+        while (isRunning)
+        {
+            std::lock_guard<std::mutex> lock(systemInfoMutex);
+            spdlog::info("LOGGER -> CPU: {}%, RAM: {}%, Disk: {}%",
+                         systemInfo.CpuPercent,
+                         systemInfo.Ram.RamUsed,
+                         systemInfo.Disk.DiskUsed);
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        }
+    }, std::ref(isRunning), std::ref(systemInfo), std::ref(systemInfoMutex));
+    spdlog::info("logger thread id: {}", thread_id_str(logger.get_id()));
+
     // Join threads before exiting, check joinable to avoid join twice or join a thread that was not started
     // can't join readDisk as it was detached
     if(stopper.joinable()) stopper.join();
     if(readCpu.joinable()) readCpu.join();
     if(readRam.joinable()) readRam.join();
+    if(readDisk.joinable()) readDisk.join();
+    if(logger.joinable()) logger.join();
     spdlog::info("All monitoring threads have been stopped. Exiting program.");
     
     return 0;
