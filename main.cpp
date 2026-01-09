@@ -46,15 +46,21 @@ int main()
     // expect thread id readDisk is 0 as it was detached, the readDisk is empty thread object now
     spdlog::info("readDisk thread id: {}", thread_id_str(readDisk.get_id()));
     spdlog::info("main thread id: {}", thread_id_str(std::this_thread::get_id()));
-
-    // Wait for user to press Enter
-    if (std::cin.get() == '\n')
-    {
-        isRunning = false;
-    }
+    // create a thread to wait for user input to stop the monitoring using lambda function instead of function pointer
+    std::thread stopper([](std::atomic<bool> &isRunning) {
+        // Wait for user to press Enter
+        if (std::cin.get() == '\n')
+        {
+            isRunning = false;
+        }
+    }, std::ref(isRunning));
+    spdlog::info("stopper thread id: {}", thread_id_str(stopper.get_id()));
     // Join threads before exiting, check joinable to avoid join twice or join a thread that was not started
     // can't join readDisk as it was detached
+    if(stopper.joinable()) stopper.join();
     if(readCpu.joinable()) readCpu.join();
     if(readRam.joinable()) readRam.join();
+    spdlog::info("All monitoring threads have been stopped. Exiting program.");
+    
     return 0;
 }
